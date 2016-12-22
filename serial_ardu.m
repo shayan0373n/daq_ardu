@@ -1,67 +1,48 @@
 clear
-port = 'COM6';
-BaudRate = 115200;
 NOC = 8; %number of channels
 BPC = 2; %bytes per channel
-voltage_max = 5;
-N = 16; % TO BE CORRECTED
-sample_rate = 1000;
-refresh_rate = 50;
-divider = sample_rate/refresh_rate;
-data = zeros(NOC, refresh_rate);
-x = 0:refresh_rate-1;
-h = gobjects(8,1);
-
-
-f = figure('CloseRequestFcn',@cleanUp);
 log = fopen('data_log.txt','w+');
-
+voltage_max = 5;
+N = 16;
+sample_rate = 50;
+data = zeros(NOC, sample_rate);
+x = 0:sample_rate-1;
+h = gobjects(8,1);
+figure
 for j = 1:NOC
-    subplot(2,4,j)
-    h(j) = plot(x,data(1,:));
+    ax = subplot(2,4,j);
+    h(j) = animatedline(ax,'MaximumNumPoints',sample_rate);
     title(['Channel ', int2str(j)]);
-    axis([0 refresh_rate-1 -1*voltage_max voltage_max])
+    axis([0 sample_rate-1 0 1])
 end
 
-ardu=serial(port, 'BaudRate', BaudRate); % automatic COM detection to be added
-try
-    fopen(ardu);
-    i = 0;
-    k = 0;
-    while true
-        i = i + 1;
-        while (ardu.BytesAvailable < (NOC * BPC))
+tic
+i = 0;
+k = 0;
+while true
+    i = 1 + i;
+    received_data = rand(NOC, 1);
+    fprintf(log,'%d\t',received_data);
+    fprintf(log,'\n');
+    data(:,i) = received_data;
+%     if i == 25
+%         set(h,'LineStyle','none')
+%     end
+%     if i == 2
+%         set(h,'LineStyle', '-')
+%     end
+    if i==sample_rate
+        for j = 1:NOC
+            addpoints(h(j),x(:),data(j,:));
         end
-        received_data = fread(ardu,NOC,'int16') * (voltage_max/2^(N-1));
-        %fprintf(log,'%f\t',received_data);
-        %fprintf(log,'\n');
-        if mod(i,divider) == 1
-            k = k + 1;
-            data(:,k) = received_data;
-            for j = 1:NOC
-                %h(j).YData = data(j,:);
-                set(h(j),'YData', data(j,:))
-            end
-            drawnow limitrate
-            k = mod(k, refresh_rate);
-        end
-        %i = mod(i, sample_rate);
+        drawnow
+        i=0;
     end
-    
-catch ME
-    ports = instrfindall;
-    fclose(ports);
-    delete(ports);
-    clear ports
-    fclose(log);
-    rethrow(ME)
+    %i = mod(i, sample_rate);
+    k = k+1;
+    if k == 100*sample_rate
+        break
+    end
 end
-
-function cleanUp(src,callbackdata)
-    delete(src);
-    ports = instrfindall;
-    fclose(ports);
-    delete(ports);
-    fclose(log);
-    clear ports
-end
+toc
+fclose(log);
