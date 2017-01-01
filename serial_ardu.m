@@ -1,16 +1,16 @@
 clear
-port = 'COM6';
+port = 'COM9';
 BaudRate = 115200;
 NOC = 8; %number of channels
 BPC = 2; %bytes per channel
 voltage_max = 5;
-N = 16; % TO BE CORRECTED
-sample_rate = 3125;
-refresh_rate = 400;
+N = 14; % TO BE CORRECTED
+%sample_rate = 1000;
+refresh_rate = 50;
 %divider = sample_rate/refresh_rate;
-divider = 10;
+%divider = 10;
 data = zeros(NOC, refresh_rate);
-x = -1:refresh_rate-1; % x(-1) is a dummy point equal NaN
+x = -1:refresh_rate-1; % x(-1) is a dummy point equals NaN
 h = gobjects(8,1);
 
 
@@ -34,7 +34,11 @@ try
     i = 1;
     k = 0;
     fopen(ardu);
-    tic
+    flushinput(ardu);
+    fprintf(ardu, 'start');
+    ardu_answer = fscanf(ardu,'%s');
+    assert(strcmp(ardu_answer,'start'));
+    %tic
     while true
         while (ardu.BytesAvailable < (NOC * BPC))
         end
@@ -48,18 +52,18 @@ try
             addpoints(h(j),x(i),received_data(j));
         end
         drawnow limitrate
-        if i == refresh_rate + 1
+        if i == (refresh_rate + 1)
             i = 1;
             for j = 1:NOC
                 addpoints(h(j),x(1),NaN);
             end
         end
         k = k + 1;
-        if k == 20*refresh_rate
+        if k == 200*refresh_rate
             break
         end
     end
-    toc
+    %toc
     
 catch ME
     ports = instrfindall;
